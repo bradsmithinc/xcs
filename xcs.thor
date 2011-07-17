@@ -22,7 +22,7 @@ class XcodeProxy
   end
 
   def close
-    @app.project_documents[@project_document].close
+    #@app.project_documents[@project_document].close
   end
 
   def list(verbose = false)
@@ -32,8 +32,16 @@ class XcodeProxy
 
   def add(path, group)
     root_group = @app.projects[@project].root_group
-    group_ref = find_group(root_group, group)
-    if group_ref != nil then
+    if !root_group
+      puts "root group not found"
+			exit
+		end
+		group_ref = find_group(root_group, group)
+    if !group_ref
+		  puts "Group Not Found"
+		  exit
+		end
+		if group_ref != nil then
       file = File.basename(path)
       file_ref = group_ref.make(
         :new => :file_reference,
@@ -42,15 +50,16 @@ class XcodeProxy
           :full_path => path
         })
 
-      if file_ref != nil then
-        compilable = %w[.cpp .c .C .m .mm]
-        compilable.each do |ext|
-          if path =~ /#{ext}$/ then
-            file_ref.add(:to => @app.projects[@project].targets[1])
-            break
-          end
-        end
-      end
+#
+#      if file_ref != nil then
+#        compilable = %w[.cpp .c .C .m .mm]
+#        compilable.each do |ext|
+#          if path =~ /#{ext}$/ then
+#            file_ref.add(:to => @app.projects[@project].targets[0])
+#            break
+#          end
+#        end
+#      end
     end
   end
 
@@ -59,16 +68,26 @@ class XcodeProxy
     group = File.dirname(path)
     root_group = @app.projects[@project].root_group
     group_ref = find_group(root_group, group)
-    return if group_ref == nil
-
+    if group_ref == nil
+      puts "group not found"
+			exit
+		end
+		found = false
     file_refs = group_ref.file_references.get
     file_refs.each do |fref|
       fn = fref.name.get
-      if fn == filename then 
+      if fn == filename then
+				found = true
         id = fref.id_.get
+        puts group_ref.file_references.ID(id).get
         group_ref.delete(group_ref.file_references.ID(id))
       end
     end
+
+		if found == false
+      puts "File not found"
+		end
+		puts "1"
   end
 
   def mkgroup(group)
@@ -120,9 +139,9 @@ private
     items = group_ref.item_references.get
     items.each do |item| 
       item_class = item.class_.get
-      if item_class == :group then
+      if item_class == :group  || item_class == :Xcode_3_group then
         list_group(item, verbose, indent + 1)
-      elsif item_class == :file_reference then
+      elsif item_class == :file_reference || :Xcode3_file_reference then
         print_fileref(item, verbose, indent + 1)
       else
         p item_class
@@ -134,7 +153,7 @@ private
     items = group_ref.item_references.get
     items.each do |item| 
       item_class = item.class_.get
-      if item_class == :group then
+      if item_class == :group || item_class == :Xcode_3_group then
         name = item.name.get
         return item if (name == group_name)
       end
